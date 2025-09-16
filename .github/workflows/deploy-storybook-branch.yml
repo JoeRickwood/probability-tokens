@@ -1,35 +1,11 @@
 name: Deploy branch
 
-on:
-  push:
-    branches-ignore:
-      - "main"
+env:
+      STORYBOOK_URL: ""
+
+on: pull_request
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Run linter
-        run: pnpm run lint
-
-      - name: Run tests
-        run: pnpm run test
-
   deploy:
     runs-on: ubuntu-latest
 
@@ -59,23 +35,21 @@ jobs:
           echo "# Build Output" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           pnpm run build-storybook 2>&1 | tee -a $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
 
       - name: Publish to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
         with:
-          command: pages deploy storybook-static --project-name=probabilitytokenstest --commit-dirty=true
+          command: pages deploy dist --project-name=probability-client --commit-dirty=true
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
       - name: Comment on PR
-        if: github.event_name == 'pull_request'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           PR_NUMBER=$(jq --raw-output .pull_request.number "$GITHUB_EVENT_PATH")
-          COMMENT="🚀 Deployed Storybook for branch \`${{ github.ref_name }}\`"
+          COMMENT="Preview Storybook build: \$GITHUB_STEP_SUMMARY\"
           curl -s -H "Authorization: Bearer $GITHUB_TOKEN" \
                -H "Content-Type: application/json" \
                -X POST \
